@@ -218,6 +218,9 @@ app.get('/album', (req, res) => {
   renderIfAuthenticated(req, res, 'pages/album');
 });
 
+app.get('/list', (req, res) => {
+  renderIfAuthenticated(req, res, 'pages/list');
+});
 
 // Handles form submissions from the search page.
 // The user has made a selection and wants to load photos into the photo frame
@@ -234,7 +237,7 @@ app.post('/loadFromSearch', async (req, res) => {
 
   // Construct a filter for photos.
   // Other parameters are added below based on the form submission.
-  const filters = {contentFilter: {}, mediaTypeFilter: {mediaTypes: ['PHOTO']}};
+  const filters = {contentFilter: {}, mediaTypeFilter: {mediaTypes: ['PHOTO', 'VIDEO']}};
 
   if (req.body.includedCategories) {
     // Included categories are set in the form. Add them to the filter.
@@ -328,6 +331,38 @@ app.get('/getAlbums', async (req, res) => {
       // reached.
       res.status(200).send(data);
       albumCache.setItemSync(userId, data);
+    }
+  }
+});
+
+// Returns all items owned by the user.
+app.get('/getItems', async (req, res) => {
+  logger.info('Loading items');
+  const userId = req.user.profile.id;
+
+  // Attempt to load the items from cache if available.
+  // Temporarily caching the items makes the app more responsive.
+  const cachedItems = await mediaItemCache.getItem(userId);
+  if (cachedItems) {
+    logger.verbose('Loaded items from cache.');
+    res.status(200).send(cachedItems);
+  } else {
+    logger.verbose('Loading items from API.');
+    // Items not in cache, retrieve the items from the Library API
+    // and return them
+    const data = await libraryApiGetItems(req.user.token);
+    if (data.error) {
+      // Error occured during the request. Items could not be loaded.
+      returnError(res, data);
+      // Clear the cached items.
+      mediaItemCache.removeItem(userId);
+    } else {
+      // Items were successfully loaded from the API. Cache them
+      // temporarily to speed up the next request and return them.
+      // The cache implementation automatically clears the data when the TTL is
+      // reached.
+      res.status(200).send(data);
+      mediaItemCache.setItemSync(userId, data);
     }
   }
 });
@@ -477,7 +512,7 @@ async function libraryApiSearch(authToken, parameters) {
           result.mediaItems
               .filter(x => x)  // Filter empty or invalid items.
               // Only keep media items with an image mime type.
-              .filter(x => x.mimeType && x.mimeType.startsWith('image/')) :
+              .filter(x => x.mimeType && (x.mimeType.startsWith('image/') || x.mimeType.startsWith('video/'))) :
           [];
 
       photos = photos.concat(items);
@@ -554,6 +589,57 @@ async function libraryApiGetAlbums(authToken) {
 
   logger.info('Albums loaded.');
   return {albums, error};
+}
+
+// Returns a list of all items owner by the logged in user from the Library
+// API.
+async function libraryApiGetItems(authToken) {
+  let mediaItems = [];
+  let nextPageToken = null;
+  let error = null;
+  let parameters = {pageSize: config.albumPageSize};
+  let count = 0;
+
+  try {
+    // Loop while there is a nextpageToken property in the response until all
+    // albums have been listed.
+    do {
+      logger.verbose(`Loading items. Received so far: ${mediaItems.length}`);
+      // Make a GET request to load the albums with optional parameters (the
+      // pageToken if set).
+      const result = await request.get(config.apiEndpoint + '/v1/mediaItems', {
+        headers: {'Content-Type': 'application/json'},
+        qs: parameters,
+        json: true,
+        auth: {'bearer': authToken},
+      });
+
+      logger.debug(`Response: ${result}`);
+
+      if (result && result.mediaItems) {
+        logger.verbose(`Number of items received: ${result.mediaItems.length}`);
+        // Parse albums and add them to the list, skipping empty entries.
+        const items = result.mediaItems.filter(x => !!x);
+
+        mediaItems = mediaItems.concat(items);
+      }
+      parameters.pageToken = result.nextPageToken;
+      // Loop until all albums have been listed and no new nextPageToken is
+      // returned.
+    } while ((parameters.pageToken != null));
+
+  } catch (err) {
+    // If the error is a StatusCodeError, it contains an error.error object that
+    // should be returned. It has a name, statuscode and message in the correct
+    // format. Otherwise extract the properties.
+    // error = err.error.error ||
+    //     {name: err.name, code: err.statusCode, message: err.message};
+    error = err;
+    logger.error(error);
+  }
+
+  logger.info('Items loaded.');
+  return {mediaItems, error};
 }
 
 // [END app]
