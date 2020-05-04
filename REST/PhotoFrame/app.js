@@ -343,9 +343,21 @@ app.get('/getItems', async (req, res) => {
   // Attempt to load the items from cache if available.
   // Temporarily caching the items makes the app more responsive.
   const cachedItems = await mediaItemCache.getItem(userId);
+  let stored = await storage.getItem(userId);
+  if(!stored){
+    stored = {};
+  }
+  if(!('index' in stored)){
+    stored.index = [];
+  }
+
   if (cachedItems) {
     logger.verbose('Loaded items from cache.');
+    
     res.status(200).send(cachedItems);
+    // Return and cache the result and parameters.
+    makeIndexes(res, userId, cachedItems, stored.index);
+
   } else {
     logger.verbose('Loading items from API.');
     // Items not in cache, retrieve the items from the Library API
@@ -363,6 +375,10 @@ app.get('/getItems', async (req, res) => {
       // reached.
       res.status(200).send(data);
       mediaItemCache.setItemSync(userId, data);
+      
+      // Return and cache the result and parameters.
+      makeIndexes(res, userId, data, stored.index);
+      
     }
   }
 });
@@ -460,6 +476,42 @@ function returnError(res, data) {
   const statusCode = data.error.code || 500;
   // Return the error.
   res.status(statusCode).send(data.error);
+}
+
+function makeIndexes(res, userId, data, indexes) {
+  let index, item;
+  const regex = RegExp(config.indexRegex);
+  //const regex2 = RegExp('^.*\\\\(.*)'); // pickup filename from path
+  if (data.error) {
+    returnError(res, data);
+  } else {
+
+    data.mediaItems.forEach(item => {
+      // regexの文字列を含んでいたら
+      if( regex.test(item.filename) ){
+        // その手前をindexとみなす
+        let match = item.filename.match(regex);
+        // if(regex2.test(match[1])){
+        //   let match2 = match[1].match(regex2);
+        //   index = { name: match2[1], title: match2[1] };
+        // } else {
+          index = { name: match[1], title: match[1] };
+        // }
+      } else {
+        index = { name: item.filename };
+      }
+
+      indexes.push(index);
+    });
+
+    // indexesから重複を排除し、ソート
+    let indexes2 = indexes.filter((x,i,self) => self.findIndex((v2) => x.name===v2.name) === i );
+    indexes2.sort((a,b) => a.name > b.name);
+
+    // Store the parameters that were used to load these images. They are used
+    // to resubmit the query after the cache expires.
+    storage.setItemSync(userId, {index: indexes2});
+  }
 }
 
 // Constructs a date object required for the Library API.
