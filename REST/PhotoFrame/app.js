@@ -28,6 +28,7 @@ const session = require('express-session');
 const sessionFileStore = require('session-file-store');
 const uuid = require('uuid');
 const winston = require('winston');
+const path = require('path');
 
 const app = express();
 const fileStore = sessionFileStore(session);
@@ -222,6 +223,10 @@ app.get('/list', (req, res) => {
   renderIfAuthenticated(req, res, 'pages/list');
 });
 
+app.get('/title', (req, res) => {
+  renderIfAuthenticated(req, res, 'pages/title');
+});
+
 // Handles form submissions from the search page.
 // The user has made a selection and wants to load photos into the photo frame
 // from a search query.
@@ -347,16 +352,13 @@ app.get('/getItems', async (req, res) => {
   if(!stored){
     stored = {};
   }
-  if(!('index' in stored)){
-    stored.index = [];
-  }
 
   if (cachedItems) {
     logger.verbose('Loaded items from cache.');
     
     res.status(200).send(cachedItems);
     // Return and cache the result and parameters.
-    makeIndexes(res, userId, cachedItems, stored.index);
+    makeIndexes(res, userId, cachedItems, stored);
 
   } else {
     logger.verbose('Loading items from API.');
@@ -377,12 +379,33 @@ app.get('/getItems', async (req, res) => {
       mediaItemCache.setItemSync(userId, data);
       
       // Return and cache the result and parameters.
-      makeIndexes(res, userId, data, stored.index);
+      makeIndexes(res, userId, data, stored);
       
     }
   }
 });
 
+// Returns all items owned by the user.
+app.get('/getTitles', async (req, res) => {
+  logger.info('Loading titles');
+  const userId = req.user.profile.id;
+  const stored = await storage.getItem(userId);
+
+  if (stored && stored.index) {
+    logger.verbose('Loaded titles from cache.');
+    stored.index.sort((a,b) => {
+      if ( a.title > b.title ) {
+        return 1;
+      } else {
+        return -1;
+      }
+    });
+    res.status(200).send(stored);
+  } else {
+    logger.verbose('no titles.');
+    res.status(200).send({index: {}});
+  }
+});
 
 // Returns a list of the media items that the user has selected to
 // be shown on the photo frame.
@@ -478,39 +501,68 @@ function returnError(res, data) {
   res.status(statusCode).send(data.error);
 }
 
-function makeIndexes(res, userId, data, indexes) {
-  let index, item;
+function makeIndexes(res, userId, data, stored) {
+  let index, item, file;
+  let indexes, files; 
   const regex = RegExp(config.indexRegex);
   //const regex2 = RegExp('^.*\\\\(.*)'); // pickup filename from path
   if (data.error) {
     returnError(res, data);
   } else {
+    if(!('index' in stored)){
+      stored.index = [];
+    }
+    indexes = stored.index;
+
+    if(!('file' in stored)){
+      stored.file = [];
+    }
+    files = stored.file;
 
     data.mediaItems.forEach(item => {
-      // regexの文字列を含んでいたら
+      // match regex
       if( regex.test(item.filename) ){
-        // その手前をindexとみなす
         let match = item.filename.match(regex);
-        // if(regex2.test(match[1])){
-        //   let match2 = match[1].match(regex2);
-        //   index = { name: match2[1], title: match2[1] };
-        // } else {
-          index = { name: match[1], title: match[1] };
-        // }
+        let match2 = path.basename( match[1]);
+        index = { name: match2, title: match2 };
       } else {
         index = { name: item.filename };
       }
-
       indexes.push(index);
+
+      // make files
+      file = {
+        filename: item.filename,
+        id: item.id
+      };
+      if('mediaMetadata' in item){
+        file.width = item.mediaMetadata.width;
+        file.height = item.mediaMetadata.height;
+        file.creationTime = item.mediaMetadata.creationTime;
+        if('video' in item.mediaMetadata) {
+          file.fps = item.mediaMetadata.video.fps;
+        }
+      }
+      files.push(file);
+
     });
 
-    // indexesから重複を排除し、ソート
+    // Eliminate name duplicates from indexes, and sort 
     let indexes2 = indexes.filter((x,i,self) => self.findIndex((v2) => x.name===v2.name) === i );
-    indexes2.sort((a,b) => a.name > b.name);
+    indexes2.sort((a,b) => {
+      if ( a.title > b.title ) {
+        return 1;
+      } else {
+        return -1;
+      }
+    });
+
+    // Eliminate id duplicates from files
+    let files2 = files.filter((x,i,self) => self.findIndex((v2) => x.id===v2.id) === i );
 
     // Store the parameters that were used to load these images. They are used
     // to resubmit the query after the cache expires.
-    storage.setItemSync(userId, {index: indexes2});
+    storage.setItemSync(userId, {index: indexes2, file: files2});
   }
 }
 

@@ -62,8 +62,10 @@ pre {
 }
 
 .mdl-list__item {
-  padding: 0;
+  padding: 0 5px;
   overflow: visible;
+  min-height: 24px;
+  border: dashed thin
 }
 
 .mdl-list__item--two-line {
