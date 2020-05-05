@@ -46,49 +46,14 @@ function listItems() {
             $('<div />').addClass('mdl-list__item-primary-content');
         materialDesignLiteList.append(primaryContentRoot);
 
-        // The image showing the album thumbnail.
-        // const primaryContentImage = $('<img />')
-        //                                 .attr('src', thumbnailUrl)
-        //                                 .attr('alt', item.title)
-        //                                 .addClass('mdl-list__item-avatar');
-        // primaryContentRoot.append(primaryContentImage);
-
         // The title of the album as the primary title of this item.
         const primaryContentTitle = $('<div />').text(item.filename);
         primaryContentRoot.append(primaryContentTitle);
-
-        // The number of items in this album as the sub title.
-        // const primaryContentSubTitle =
-        //     $('<div />')
-        //         .text(`(${item.mediaItemsCount} items)`)
-        //         .addClass('mdl-list__item-sub-title');
-        // const primaryContentSubTitle =
-        //     $('<div />')
-        //         .text(`(${item.mediaItemsCount} items)`)
-        //         .addClass('mdl-list__item-primary-content');
-        // primaryContentRoot.append(primaryContentSubTitle);
 
         // Secondary content consists of two links with buttons.
         const secondaryContentRoot =
             $('<div />').addClass('mdl-list__item-secondary-action');
         materialDesignLiteList.append(secondaryContentRoot);
-
-
-        // // The 'add to photo frame' link.
-        // const linkToAddToPhotoFrame = $('<a />')
-        //                                   .addClass('album-title')
-        //                                   .attr('data-id', item.id)
-        //                                   .attr('data-title', item.title);
-        // secondaryContentRoot.append(linkToAddToPhotoFrame);
-
-
-        // // The button for the 'add to photo frame' link.
-        // const addToPhotoFrameButton =
-        //     $('<button />')
-        //         .addClass(
-        //             'mdl-button mdl-js-button mdl-button--raised mdl-button--accent')
-        //         .text('Add to frame');
-        // linkToAddToPhotoFrame.append(addToPhotoFrameButton);
 
         // The 'open in Google Photos' link.
         const linkToGooglePhotos =
@@ -119,14 +84,4 @@ $(document).ready(() => {
   // Load the list of items from the backend when the page is ready.
   listItems();
 
-  // Clicking the 'add to frame' button starts an import request.
-  // $('#albums').on('click', '.album-title', (event) => {
-  //   const target = $(event.currentTarget);
-  //   const albumId = target.attr('data-id');
-  //   const albumTitle = target.attr('data-title');
-
-  //   console.log('Importing album: ' + albumTitle);
-
-  //   loadFromAlbum(albumTitle, albumId);
-  // });
 });

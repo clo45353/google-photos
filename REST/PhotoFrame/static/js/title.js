@@ -48,25 +48,13 @@ function getTitles() {
               $('<div />').addClass('mdl-list__item-primary-content');
           materialDesignLiteList.append(primaryContentRoot);
 
+          const linkToDetailPage =
+              $('<a />').attr('href', '/detail?title='+item.title);
+          primaryContentRoot.append(linkToDetailPage);
+
           // The title of the album as the primary title of this item.
           const primaryContentTitle = $('<div />').text(item.title);
-          primaryContentRoot.append(primaryContentTitle);
-
-          // // Secondary content consists of two links with buttons.
-          // const secondaryContentRoot =
-          //     $('<div />').addClass('mdl-list__item-secondary-action');
-          // materialDesignLiteList.append(secondaryContentRoot);
-
-          // // The 'open in Google Photos' link.
-          // const linkToGooglePhotos =
-          //     $('<a />').attr('target', '_blank').attr('href', item.productUrl);
-          // secondaryContentRoot.append(linkToGooglePhotos);
-
-          // // The button for the 'open in Google Photos' link.
-          // const googlePhotosButton = $('<button />')
-          //                                .addClass('gp-button raised')
-          //                                .text('Open in Google Photos');
-          // linkToGooglePhotos.append(googlePhotosButton);
+          linkToDetailPage.append(primaryContentTitle);
 
           // Add the list item to the list of items.
           $('#titles').append(materialDesignLiteList);

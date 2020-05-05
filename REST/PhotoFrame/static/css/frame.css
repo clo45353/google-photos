@@ -73,6 +73,44 @@ pre {
   width: 840px;
 }
 
+.mdl-data-table {
+  position: relative;
+  border: 1px solid rgba(0,0,0,.12);
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 14px;
+  background-color: #fff;
+}
+
+.mdl-data-table td:first-of-type {
+  position: relative;
+  /* height: 48px; */
+  /* border-top: 1px solid rgba(0,0,0,.12);
+  border-bottom: 1px solid rgba(0,0,0,.12); */
+  padding-left: 8px;
+  box-sizing: border-box;
+  text-align: left;
+  width: 840px;
+}
+
+.mdl-data-table td {
+  position: relative;
+  /* height: 48px; */
+  /* border-top: 1px solid rgba(0,0,0,.12);
+  border-bottom: 1px solid rgba(0,0,0,.12); */
+  padding: 2px 4px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.mdl-data-table tbody tr {
+  position: relative;
+  height: 12px;
+  /* transition-duration: .28s;
+  transition-timing-function: cubic-bezier(.4,0,.2,1);
+  transition-property: background-color; */
+}
+
 .snippet {
   background: #efefef;
   padding: 16px;
@@ -140,9 +178,9 @@ pre {
   border-radius: 2px;
   color: rgb(0, 0, 0);
   position: relative;
-  height: 40px;
+  height: 30px;
   margin: 0;
-  min-width: 241px;
+  min-width: 80px;
   padding: 0 16px 0 48px;
   display: inline-block;
   font-family: "Roboto", "Helvetica", "Arial", sans-serif;

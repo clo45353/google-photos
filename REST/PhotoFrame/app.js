@@ -227,6 +227,10 @@ app.get('/title', (req, res) => {
   renderIfAuthenticated(req, res, 'pages/title');
 });
 
+app.get('/detail', (req, res) => {
+  renderIfAuthenticated(req, res, 'pages/detail');
+});
+
 // Handles form submissions from the search page.
 // The user has made a selection and wants to load photos into the photo frame
 // from a search query.
@@ -306,6 +310,25 @@ app.post('/loadFromAlbum', async (req, res) => {
   const data = await libraryApiSearch(authToken, parameters);
 
   returnPhotos(res, userId, data, parameters)
+});
+
+app.get('/openFile', async (req, res) => {
+  const fileId = req.query.fileId;
+  const userId = req.user.profile.id;
+  const authToken = req.user.token;
+
+  logger.info(`load fileId: ${fileId}`);
+
+  const parameters = {fileId: fileId};
+
+  // Submit the search request to the API and wait for the result.
+  const data = await libraryApiGetItem(authToken, parameters);
+  if (data.error) {
+    // Error occured during the request. Albums could not be loaded.
+    returnError(res, data);
+  } else {
+    res.status(200).send(data);
+  }
 });
 
 // Returns all albums owned by the user.
@@ -407,6 +430,31 @@ app.get('/getTitles', async (req, res) => {
   }
 });
 
+app.get('/getDetail', async (req, res) => {
+  logger.info('Loading details');
+  const userId = req.user.profile.id;
+  const title = req.query.title;
+  const stored = await storage.getItem(userId);
+  let file;
+
+  if (stored && stored.file) {
+    logger.verbose('Loaded file '+title+' from cache.');
+
+    file = stored.file.filter(f => f.filename.indexOf(title) > -1);
+    file.sort((a,b) => {
+      if ( a.filename > b.filename ) {
+        return 1;
+      } else {
+        return -1;
+      }
+    });
+    res.status(200).send(file);
+  } else {
+    logger.verbose('no titles.');
+    res.status(200).send({index: {}});
+  }
+});
+
 // Returns a list of the media items that the user has selected to
 // be shown on the photo frame.
 // If the media items are still in the temporary cache, they are directly
@@ -460,6 +508,7 @@ function renderIfAuthenticated(req, res, page) {
   if (!req.user || !req.isAuthenticated()) {
     res.redirect('/');
   } else {
+    res.locals.title = req.query.title; // pass title for detail
     res.render(page);
   }
 }
@@ -744,6 +793,42 @@ async function libraryApiGetItems(authToken) {
 
   logger.info('Items loaded.');
   return {mediaItems, error};
+}
+
+async function libraryApiGetItem(authToken, parameters) {
+  let error = null;
+  let item;
+
+  try {
+    // Loop while the number of photos threshold has not been met yet
+    // and while there is a nextPageToken to load more items.
+    logger.info(
+        `Submitting search with parameters: ${JSON.stringify(parameters)}`);
+
+    // Make a POST request to search the library or album
+    const result =
+        await request.get(config.apiEndpoint + '/v1/mediaItems/' + parameters.fileId, {
+          headers: {'Content-Type': 'application/json'},
+          json: true,
+          auth: {'bearer': authToken},
+        });
+
+    logger.debug(`Response: ${result}`);
+
+    item = result;
+
+    logger.verbose(`Found ${item.filename} images in this request.`);
+
+  } catch (err) {
+    // If the error is a StatusCodeError, it contains an error.error object that
+    // should be returned. It has a name, statuscode and message in the correct
+    // format. Otherwise extract the properties.
+    error = err;
+    logger.error(error);
+  }
+
+  logger.info('Search complete.');
+  return {item, parameters, error};
 }
 
 // [END app]
