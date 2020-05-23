@@ -777,6 +777,13 @@ async function libraryApiGetItems(authToken) {
         mediaItems = mediaItems.concat(items);
       }
       parameters.pageToken = result.nextPageToken;
+
+      count++;
+      if (count % 10 == 0){
+        logger.info(`15 sec sleep. count=${count}`);
+        await sleep(15000); 
+      }
+
       // Loop until all albums have been listed and no new nextPageToken is
       // returned.
     } while ((parameters.pageToken != null));
@@ -831,4 +838,10 @@ async function libraryApiGetItem(authToken, parameters) {
   return {item, parameters, error};
 }
 
+function sleep(msec) {
+  return new Promise(function(resolve) {
+     setTimeout(function() {resolve()}, msec);
+  })
+}
+ 
 // [END app]

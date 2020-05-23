@@ -25,6 +25,7 @@ function listItems() {
     type: 'GET',
     url: '/getItems',
     dataType: 'json',
+    timeout: 1800000,
     success: (data) => {
       console.log('Loaded items: ' + data.mediaItems);
       // Render each album from the backend in its own row, consisting of
